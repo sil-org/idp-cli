@@ -21,8 +21,6 @@ const (
 	Ecr                    = "022-ecr"
 	Phpmyadmin             = "030-phpmyadmin"
 	PhpmyadminSecondary    = "030-phpmyadmin-secondary"
-	EmailService           = "031-email-service"
-	EmailServiceSecondary  = "031-email-service-secondary"
 	DbBackup               = "032-db-backup"
 	IdBroker               = "040-id-broker"
 	IdBrokerSecondary      = "040-id-broker-secondary"
@@ -87,7 +85,6 @@ func newFailover(pFlags PersistentFlags) *Failover {
 		ClusterSecondary:       clusterSecondaryWorkspace,
 		DatabaseSecondary:      databaseSecondaryWorkspace,
 		PhpmyadminSecondary:    pmaSecondaryWorkspace,
-		EmailServiceSecondary:  emailSecondaryWorkspace,
 		IdBrokerSecondary:      brokerSecondaryWorkspace,
 		PwManagerSecondary:     pwSecondaryWorkspace,
 		SimplesamlphpSecondary: sspSecondaryWorkspace,

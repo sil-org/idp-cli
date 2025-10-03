@@ -60,7 +60,6 @@ func createSecondaryWorkspaces(pFlags PersistentFlags) {
 	createSecondaryWorkspace(pFlags, clusterWorkspace(pFlags))
 	createSecondaryWorkspace(pFlags, databaseWorkspace(pFlags))
 	createSecondaryWorkspace(pFlags, pmaWorkspace(pFlags))
-	createSecondaryWorkspace(pFlags, emailWorkspace(pFlags))
 	createSecondaryWorkspace(pFlags, brokerWorkspace(pFlags))
 	createSecondaryWorkspace(pFlags, pwWorkspace(pFlags))
 	createSecondaryWorkspace(pFlags, sspWorkspace(pFlags))
@@ -149,7 +148,6 @@ func setMultiregionVariables(pFlags PersistentFlags) {
 	tfRemoteClusterSecondary := lib.TFVar{Key: "tf_remote_cluster_secondary", Value: pFlags.org + "/" + clusterSecondaryWorkspace(pFlags)}
 	tfRemoteDatabase := lib.TFVar{Key: "tf_remote_database", Value: pFlags.org + "/" + databaseWorkspace(pFlags)}
 	tfRemoteDatabaseSecondary := lib.TFVar{Key: "tf_remote_database_secondary", Value: pFlags.org + "/" + databaseSecondaryWorkspace(pFlags)}
-	tfRemoteEmailSecondary := lib.TFVar{Key: "tf_remote_email_secondary", Value: pFlags.org + "/" + emailSecondaryWorkspace(pFlags)}
 	tfRemoteBrokerSecondary := lib.TFVar{Key: "tf_remote_broker_secondary", Value: pFlags.org + "/" + brokerSecondaryWorkspace(pFlags)}
 	tfRemotePwManagerSecondary := lib.TFVar{Key: "tf_remote_pwmanager_secondary", Value: pFlags.org + "/" + pwSecondaryWorkspace(pFlags)}
 	tfRemoteSsp := lib.TFVar{Key: "tf_remote_simplesamlphp", Value: pFlags.org + "/" + sspWorkspace(pFlags)}
@@ -195,23 +193,15 @@ func setMultiregionVariables(pFlags PersistentFlags) {
 	}
 	setVars(pFlags, pmaSecondaryWorkspace(pFlags), pmaVars)
 
-	emailVars := []lib.TFVar{
-		tfRemoteClusterSecondary,
-		tfRemoteDatabaseSecondary,
-	}
-	setVars(pFlags, emailSecondaryWorkspace(pFlags), emailVars)
-
 	brokerVars := []lib.TFVar{
 		tfRemoteClusterSecondary,
 		tfRemoteDatabaseSecondary,
-		tfRemoteEmailSecondary,
 	}
 	setVars(pFlags, brokerSecondaryWorkspace(pFlags), brokerVars)
 
 	pwVars := []lib.TFVar{
 		tfRemoteClusterSecondary,
 		tfRemoteDatabaseSecondary,
-		tfRemoteEmailSecondary,
 		tfRemoteBrokerSecondary,
 	}
 	setVars(pFlags, pwSecondaryWorkspace(pFlags), pwVars)
@@ -227,7 +217,6 @@ func setMultiregionVariables(pFlags PersistentFlags) {
 
 	syncVars := []lib.TFVar{
 		tfRemoteClusterSecondary,
-		tfRemoteEmailSecondary,
 		tfRemoteBrokerSecondary,
 	}
 	setVars(pFlags, syncSecondaryWorkspace(pFlags), syncVars)
@@ -246,16 +235,10 @@ func deleteUnusedVariables(pFlags PersistentFlags) {
 		"tf_remote_cluster",
 		"tf_remote_database",
 	})
-	deleteVariablesFromWorkspace(pFlags, emailSecondaryWorkspace(pFlags), []string{
-		"aws_region",
-		"tf_remote_cluster",
-		"tf_remote_database",
-	})
 	deleteVariablesFromWorkspace(pFlags, brokerSecondaryWorkspace(pFlags), []string{
 		"aws_region",
 		"tf_remote_cluster",
 		"tf_remote_database",
-		"tf_remote_email",
 	})
 	deleteVariablesFromWorkspace(pFlags, pwSecondaryWorkspace(pFlags), []string{
 		"aws_region",
@@ -263,7 +246,6 @@ func deleteUnusedVariables(pFlags PersistentFlags) {
 		"tf_remote_cluster",
 		"tf_remote_database",
 		"tf_remote_elasticache",
-		"tf_remote_email",
 	})
 	deleteVariablesFromWorkspace(pFlags, sspSecondaryWorkspace(pFlags), []string{
 		"aws_region",
@@ -277,7 +259,6 @@ func deleteUnusedVariables(pFlags PersistentFlags) {
 		"aws_region",
 		"tf_remote_broker",
 		"tf_remote_cluster",
-		"tf_remote_email",
 	})
 }
 
@@ -366,7 +347,6 @@ func setRemoteConsumers(pFlags PersistentFlags) error {
 		databaseWorkspace(pFlags),
 		databaseSecondaryWorkspace(pFlags),
 		ecrWorkspace(pFlags),
-		emailSecondaryWorkspace(pFlags),
 		brokerSecondaryWorkspace(pFlags),
 		pwSecondaryWorkspace(pFlags),
 	}
@@ -405,7 +385,6 @@ func getWorkspaceConsumers(pFlags PersistentFlags, workspace string) []string {
 			clusterSecondaryWorkspace(pFlags),
 			databaseSecondaryWorkspace(pFlags),
 			pmaSecondaryWorkspace(pFlags),
-			emailSecondaryWorkspace(pFlags),
 			brokerSecondaryWorkspace(pFlags),
 			pwSecondaryWorkspace(pFlags),
 			sspSecondaryWorkspace(pFlags),
@@ -414,7 +393,6 @@ func getWorkspaceConsumers(pFlags PersistentFlags, workspace string) []string {
 		clusterSecondaryWorkspace(pFlags): {
 			databaseSecondaryWorkspace(pFlags),
 			pmaSecondaryWorkspace(pFlags),
-			emailSecondaryWorkspace(pFlags),
 			backupWorkspace(pFlags),
 			brokerSecondaryWorkspace(pFlags),
 			searchWorkspace(pFlags),
@@ -427,22 +405,15 @@ func getWorkspaceConsumers(pFlags PersistentFlags, workspace string) []string {
 		},
 		databaseSecondaryWorkspace(pFlags): {
 			pmaSecondaryWorkspace(pFlags),
-			emailSecondaryWorkspace(pFlags),
 			backupWorkspace(pFlags),
 			brokerSecondaryWorkspace(pFlags),
 			pwSecondaryWorkspace(pFlags),
 			sspSecondaryWorkspace(pFlags),
 		},
 		ecrWorkspace(pFlags): {
-			emailSecondaryWorkspace(pFlags),
 			brokerSecondaryWorkspace(pFlags),
 			pwSecondaryWorkspace(pFlags),
 			sspSecondaryWorkspace(pFlags),
-			syncSecondaryWorkspace(pFlags),
-		},
-		emailSecondaryWorkspace(pFlags): {
-			brokerSecondaryWorkspace(pFlags),
-			pwSecondaryWorkspace(pFlags),
 			syncSecondaryWorkspace(pFlags),
 		},
 		brokerSecondaryWorkspace(pFlags): {
@@ -475,8 +446,6 @@ func setRunTriggers(pFlags PersistentFlags) error {
 	// map of workspaces (key) and source workspaces (value) for run triggers to be created
 	runTriggers := map[string]string{
 		databaseSecondaryWorkspace(pFlags): clusterSecondaryWorkspace(pFlags),
-		emailSecondaryWorkspace(pFlags):    databaseSecondaryWorkspace(pFlags),
-		brokerSecondaryWorkspace(pFlags):   emailSecondaryWorkspace(pFlags),
 		pwSecondaryWorkspace(pFlags):       brokerSecondaryWorkspace(pFlags),
 		sspSecondaryWorkspace(pFlags):      pwSecondaryWorkspace(pFlags),
 		syncSecondaryWorkspace(pFlags):     sspSecondaryWorkspace(pFlags),
