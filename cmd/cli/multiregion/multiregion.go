@@ -113,14 +113,6 @@ func pmaSecondaryWorkspace(pFlags PersistentFlags) string {
 	return fmt.Sprintf("idp-%s-%s-030-phpmyadmin-secondary", pFlags.idp, pFlags.env)
 }
 
-func emailWorkspace(pFlags PersistentFlags) string {
-	return fmt.Sprintf("idp-%s-%s-031-email-service", pFlags.idp, pFlags.env)
-}
-
-func emailSecondaryWorkspace(pFlags PersistentFlags) string {
-	return fmt.Sprintf("idp-%s-%s-031-email-service-secondary", pFlags.idp, pFlags.env)
-}
-
 func backupWorkspace(pFlags PersistentFlags) string {
 	return fmt.Sprintf("idp-%s-%s-032-db-backup", pFlags.idp, pFlags.env)
 }

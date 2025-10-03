@@ -28,14 +28,6 @@ type DnsCommand struct {
 	testMode      bool
 }
 
-type DnsValues struct {
-	albInternal string
-	albExternal string
-	bot         string
-	mfa         string
-	twosv       string
-}
-
 func InitDnsCmd(parentCmd *cobra.Command) {
 	var failback, includeCommon bool
 
@@ -136,10 +128,7 @@ func (d *DnsCommand) setDnsRecordValues(idpKey string) {
 	}
 
 	common := []nameValuePair{
-		// "mfa-api" is the TOTP API, also known as serverless-mfa-api
-		{"mfa-api", "mfa-api-" + region},
-
-		// "twosv-api" is the Webauthn API, also known as serverless-mfa-api-go
+		// "twosv-api" is the TOTP and Webauthn API, also known as serverless-mfa-api-go
 		{"twosv-api", "twosv-api-" + region},
 
 		// this is the idp-support-bot API that is configured in the Slack API dashboard
