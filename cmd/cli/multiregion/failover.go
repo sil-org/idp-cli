@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/silinternational/tfc-ops/v3/lib"
+	"github.com/sil-org/tfc-ops/v5/lib"
 	"github.com/spf13/cobra"
 )
 
@@ -131,7 +131,7 @@ func (f *Failover) setVariable(workspaceKey, variableKey, value string) {
 		return
 	}
 
-	lib.UpdateVariable(f.tfcOrg, f.workspaces[workspaceKey].Attributes.Name, v.ID, lib.TFVar{
+	lib.UpdateVariable(f.tfcOrg, f.workspaces[workspaceKey].Attributes.Name, v.ID, lib.Var{
 		Key:   variableKey,
 		Value: value,
 	})

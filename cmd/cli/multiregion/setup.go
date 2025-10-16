@@ -9,7 +9,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/silinternational/tfc-ops/v3/lib"
+	"github.com/sil-org/tfc-ops/v5/lib"
 	"github.com/spf13/cobra"
 )
 
@@ -145,28 +145,28 @@ func setWorkspaceProperties(pFlags PersistentFlags, workspace string) {
 func setMultiregionVariables(pFlags PersistentFlags) {
 	fmt.Println("\nSetting variables...")
 
-	tfRemoteClusterSecondary := lib.TFVar{Key: "tf_remote_cluster_secondary", Value: pFlags.org + "/" + clusterSecondaryWorkspace(pFlags)}
-	tfRemoteDatabase := lib.TFVar{Key: "tf_remote_database", Value: pFlags.org + "/" + databaseWorkspace(pFlags)}
-	tfRemoteDatabaseSecondary := lib.TFVar{Key: "tf_remote_database_secondary", Value: pFlags.org + "/" + databaseSecondaryWorkspace(pFlags)}
-	tfRemoteBrokerSecondary := lib.TFVar{Key: "tf_remote_broker_secondary", Value: pFlags.org + "/" + brokerSecondaryWorkspace(pFlags)}
-	tfRemotePwManagerSecondary := lib.TFVar{Key: "tf_remote_pwmanager_secondary", Value: pFlags.org + "/" + pwSecondaryWorkspace(pFlags)}
-	tfRemoteSsp := lib.TFVar{Key: "tf_remote_simplesamlphp", Value: pFlags.org + "/" + sspWorkspace(pFlags)}
+	tfRemoteClusterSecondary := lib.Var{Key: "tf_remote_cluster_secondary", Value: pFlags.org + "/" + clusterSecondaryWorkspace(pFlags)}
+	tfRemoteDatabase := lib.Var{Key: "tf_remote_database", Value: pFlags.org + "/" + databaseWorkspace(pFlags)}
+	tfRemoteDatabaseSecondary := lib.Var{Key: "tf_remote_database_secondary", Value: pFlags.org + "/" + databaseSecondaryWorkspace(pFlags)}
+	tfRemoteBrokerSecondary := lib.Var{Key: "tf_remote_broker_secondary", Value: pFlags.org + "/" + brokerSecondaryWorkspace(pFlags)}
+	tfRemotePwManagerSecondary := lib.Var{Key: "tf_remote_pwmanager_secondary", Value: pFlags.org + "/" + pwSecondaryWorkspace(pFlags)}
+	tfRemoteSsp := lib.Var{Key: "tf_remote_simplesamlphp", Value: pFlags.org + "/" + sspWorkspace(pFlags)}
 
 	// Set variables in primary workspaces that also point to secondary workspaces
 
-	coreVars := []lib.TFVar{
+	coreVars := []lib.Var{
 		{Key: "aws_create_secondary", Value: "true"},
 		{Key: "aws_region_secondary", Value: pFlags.secondaryRegion},
 	}
 	setVars(pFlags, coreWorkspace(pFlags), coreVars)
 
-	backupVars := []lib.TFVar{
+	backupVars := []lib.Var{
 		tfRemoteClusterSecondary,
 		tfRemoteDatabaseSecondary,
 	}
 	setVars(pFlags, backupWorkspace(pFlags), backupVars)
 
-	brokerSearchVars := []lib.TFVar{
+	brokerSearchVars := []lib.Var{
 		tfRemoteClusterSecondary,
 		tfRemoteBrokerSecondary,
 	}
@@ -174,39 +174,39 @@ func setMultiregionVariables(pFlags PersistentFlags) {
 
 	// Set variables in the new secondary workspaces
 
-	clusterVars := []lib.TFVar{
+	clusterVars := []lib.Var{
 		{Key: "aws_zones", Value: getZonesHCL(pFlags.secondaryRegion), Hcl: true},
 	}
 	setVars(pFlags, clusterSecondaryWorkspace(pFlags), clusterVars)
 
-	databaseVars := []lib.TFVar{
+	databaseVars := []lib.Var{
 		{Key: "availability_zone", Value: pFlags.secondaryRegion + "a"}, // TODO: make this work in all regions
 		tfRemoteClusterSecondary,
 		tfRemoteDatabase,
 	}
 	setVars(pFlags, databaseSecondaryWorkspace(pFlags), databaseVars)
 
-	pmaVars := []lib.TFVar{
+	pmaVars := []lib.Var{
 		{Key: "pma_subdomain", Value: pFlags.idp + "-pma-secondary"},
 		tfRemoteClusterSecondary,
 		tfRemoteDatabaseSecondary,
 	}
 	setVars(pFlags, pmaSecondaryWorkspace(pFlags), pmaVars)
 
-	brokerVars := []lib.TFVar{
+	brokerVars := []lib.Var{
 		tfRemoteClusterSecondary,
 		tfRemoteDatabaseSecondary,
 	}
 	setVars(pFlags, brokerSecondaryWorkspace(pFlags), brokerVars)
 
-	pwVars := []lib.TFVar{
+	pwVars := []lib.Var{
 		tfRemoteClusterSecondary,
 		tfRemoteDatabaseSecondary,
 		tfRemoteBrokerSecondary,
 	}
 	setVars(pFlags, pwSecondaryWorkspace(pFlags), pwVars)
 
-	sspVars := []lib.TFVar{
+	sspVars := []lib.Var{
 		tfRemoteClusterSecondary,
 		tfRemoteDatabaseSecondary,
 		tfRemoteBrokerSecondary,
@@ -215,7 +215,7 @@ func setMultiregionVariables(pFlags PersistentFlags) {
 	}
 	setVars(pFlags, sspSecondaryWorkspace(pFlags), sspVars)
 
-	syncVars := []lib.TFVar{
+	syncVars := []lib.Var{
 		tfRemoteClusterSecondary,
 		tfRemoteBrokerSecondary,
 	}
@@ -286,7 +286,7 @@ func setSensitiveVariables(pFlags PersistentFlags) {
 }
 
 // setVars sets a list of variables using the current variable values to decide whether to update or create
-func setVars(pFlags PersistentFlags, workspace string, newVars []lib.TFVar) {
+func setVars(pFlags PersistentFlags, workspace string, newVars []lib.Var) {
 	currentVars, err := lib.GetVarsFromWorkspace(pFlags.org, workspace)
 	if err != nil {
 		log.Fatalf("failed to get the variables from %q", workspace)
@@ -298,7 +298,7 @@ func setVars(pFlags PersistentFlags, workspace string, newVars []lib.TFVar) {
 }
 
 // setVar sets a variable using the list of current variables to decide whether to update or create
-func setVar(pFlags PersistentFlags, vars []lib.Var, workspace string, tfVar lib.TFVar) {
+func setVar(pFlags PersistentFlags, vars []lib.Var, workspace string, tfVar lib.Var) {
 	if v := findVar(vars, tfVar.Key); v == nil {
 		fmt.Printf("%s - creating var.%s with value %q\n", workspace, tfVar.Key, tfVar.Value)
 		if !pFlags.readOnlyMode {

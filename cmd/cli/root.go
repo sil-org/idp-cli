@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/silinternational/idp-cli/cmd/cli/flags"
-	"github.com/silinternational/idp-cli/cmd/cli/multiregion"
+	"github.com/sil-org/idp-cli/cmd/cli/flags"
+	"github.com/sil-org/idp-cli/cmd/cli/multiregion"
 )
 
 const requiredPrefix = "required - "
@@ -23,7 +23,7 @@ func Execute() {
 	rootCmd := &cobra.Command{
 		Use:   "idp-cli",
 		Short: "idp-in-a-box CLI",
-		Long: `idp is a CLI tool for the silinternational/idp-in-a-box system.
+		Long: `idp is a CLI tool for the sil-org/idp-in-a-box system.
 It can be used to check the status of the IdP. It can also be used to establish secondary resources
 in a second AWS region, and to initiate a secondary region failover action.`,
 	}

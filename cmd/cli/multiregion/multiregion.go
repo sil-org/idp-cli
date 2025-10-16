@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/silinternational/idp-cli/cmd/cli/flags"
+	"github.com/sil-org/idp-cli/cmd/cli/flags"
 )
 
 const envProd = "prod"
