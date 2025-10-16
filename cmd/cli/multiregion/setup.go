@@ -9,7 +9,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/silinternational/tfc-ops/v3/lib"
+	"github.com/sil-org/tfc-ops/v5/lib"
 	"github.com/spf13/cobra"
 )
 
