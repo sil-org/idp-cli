@@ -131,7 +131,7 @@ func (f *Failover) setVariable(workspaceKey, variableKey, value string) {
 		return
 	}
 
-	lib.UpdateVariable(f.tfcOrg, f.workspaces[workspaceKey].Attributes.Name, v.ID, lib.TFVar{
+	lib.UpdateVariable(f.tfcOrg, f.workspaces[workspaceKey].Attributes.Name, v.ID, lib.Var{
 		Key:   variableKey,
 		Value: value,
 	})
