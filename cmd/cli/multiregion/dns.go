@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 SIL International
+Copyright © 2023 SIL Global
 */
 
 package multiregion
