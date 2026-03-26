@@ -1,8 +1,14 @@
 # This is the configuration for goreleaser
-# Check the documentation at http://goreleaser.com for details
+# Check the documentation at https://goreleaser.com for details
+
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+
+version: 2
+
 before:
   hooks:
     - go mod tidy
+
 builds:
   - id: idp-cli
     binary: idp-cli
@@ -25,19 +31,24 @@ builds:
 gomod:
   proxy: true
 archives:
-  -
+  - formats: [tar.gz]
+    # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
-      idp-cli_
+      {{ .ProjectName }}_
       {{- title .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # use zip for windows archives
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
+
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ .Tag }}-dev"
+  version_template: "{{ .Tag }}-dev"
 changelog:
   sort: asc
   filters:
