@@ -43,7 +43,7 @@ func runSetup() {
 	answer := simplePrompt(`\nSet remote consumers? Type "yes" if workspace-specific sharing is used.`)
 	if answer == "yes" {
 		if err := setRemoteConsumers(pFlags); err != nil {
-			log.Fatalf("Error: " + err.Error())
+			log.Fatalf("Error: %s", err)
 		}
 	}
 

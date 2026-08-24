@@ -75,8 +75,7 @@ func initConfig() {
 			panic(err.Error())
 		}
 	} else {
-		var vErr viper.ConfigFileNotFoundError
-		if !errors.As(err, &vErr) {
+		if _, ok := errors.AsType[viper.ConfigFileNotFoundError](err); !ok {
 			_, err = fmt.Fprintf(os.Stderr, "Problem with config file: %s %T\n", err, err)
 			if err != nil {
 				panic(err.Error())

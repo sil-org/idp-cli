@@ -1,6 +1,6 @@
 module github.com/sil-org/idp-cli
 
-go 1.25.0
+go 1.27
 
 require (
 	github.com/cloudflare/cloudflare-go v0.116.0
