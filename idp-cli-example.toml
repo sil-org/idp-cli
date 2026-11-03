@@ -30,3 +30,22 @@ domain-name = "example.net"
 
 # "cloudflare-token" is required and must have edit permission on the domain name specified in "domain-name"
 cloudflare-token = ""
+
+# -------------------------------------------------------------------------------------------------
+# These parameters are for the "logins" commands. "region" (above) is the table's region.
+
+# AWS profile to use, like the AWS CLI's --profile. Default is the standard credential chain.
+# profile = "idp-audit"
+
+# DynamoDB login log table (the IdP's DYNAMO_LOG_TABLE). Required.
+log-table = "idp-myidp-prod-user-log"
+
+# Max read capacity units per second a scan may consume (0 = unlimited). Default is 500.
+# On an on-demand (PAY_PER_REQUEST) table, 0 is safe.
+# max-rcu = 500
+
+# Parallel scan workers. Default is 4.
+# scan-segments = 4
+
+# Stop with an error if more than this many logins match, to protect memory (0 = no limit). Default is 1000000.
+# max-records = 1000000
