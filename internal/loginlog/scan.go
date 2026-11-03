@@ -7,6 +7,7 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -138,8 +139,18 @@ func (s Scanner) scanSegment(
 	}
 
 	var entries []Entry
+	budget := rcuBudget{limiter: limiter}
+	// A page's cost is only known after it's read, so reserve an estimate
+	// before each request -- a full page at first, then the previous page's
+	// cost -- and charge any shortfall afterwards. Every page is paid for
+	// before (or as) it's read, so MaxRCU holds across all segments from the
+	// very first request.
+	estimate := float64(maxPageRCU)
 	paginator := dynamodb.NewScanPaginator(s.Client, input)
 	for paginator.HasMorePages() {
+		if err := budget.wait(ctx, estimate); err != nil {
+			return nil, err
+		}
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, err
@@ -163,13 +174,36 @@ func (s Scanner) scanSegment(
 		}
 		progress.milliRCU.Add(int64(consumed * 1000))
 
-		// Pay for this page before requesting the next one.
-		if limiter != nil && consumed > 0 && paginator.HasMorePages() {
-			n := min(int(math.Ceil(consumed)), limiter.Burst())
-			if err := limiter.WaitN(ctx, n); err != nil {
-				return nil, err
-			}
-		}
+		budget.charge(consumed - estimate)
+		estimate = consumed
 	}
 	return entries, nil
+}
+
+// rcuBudget applies a shared rate limit (in RCU per second) to scan requests.
+// A nil limiter means unlimited.
+type rcuBudget struct {
+	limiter *rate.Limiter
+}
+
+// wait blocks until rcu can be spent.
+func (b rcuBudget) wait(ctx context.Context, rcu float64) error {
+	if b.limiter == nil || rcu <= 0 {
+		return nil
+	}
+	return b.limiter.WaitN(ctx, b.tokens(rcu))
+}
+
+// charge spends rcu without waiting, putting the shared budget into debt if
+// need be, so that the next request -- from any segment -- waits it off.
+// Used for a page that cost more than was reserved for it.
+func (b rcuBudget) charge(rcu float64) {
+	if b.limiter == nil || rcu <= 0 {
+		return
+	}
+	b.limiter.ReserveN(time.Now(), b.tokens(rcu))
+}
+
+func (b rcuBudget) tokens(rcu float64) int {
+	return min(int(math.Ceil(rcu)), b.limiter.Burst()) // a page never costs more than the burst
 }

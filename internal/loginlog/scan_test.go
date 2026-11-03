@@ -64,11 +64,10 @@ func (f *fakeDynamo) Scan(ctx context.Context, in *dynamodb.ScanInput, _ ...func
 	return out, nil
 }
 
-func TestScan_RateLimitThrottlesAfterBurst(t *testing.T) {
+func TestScan_RateLimitThrottlesEveryPage(t *testing.T) {
 	// Each page costs a full 128 RCU (the burst size). At 1280 RCU/s the
-	// first page is covered by the initial burst; each later page waits
-	// ~100ms. 4 pages => 3 waits, the last of which is skipped (no next
-	// page to protect) => ~200ms.
+	// first page is covered by the initially full bucket and each of the
+	// other 3 waits ~100ms => ~300ms.
 	fake := &fakeDynamo{failOn: -1, pages: 4, rcuPerPage: 128}
 	s := Scanner{Client: fake, Table: "log", Segments: 1, MaxRCU: 1280}
 
@@ -81,8 +80,8 @@ func TestScan_RateLimitThrottlesAfterBurst(t *testing.T) {
 	if len(entries) != 4 {
 		t.Fatalf("got %d entries, want 4", len(entries))
 	}
-	if elapsed < 150*time.Millisecond {
-		t.Errorf("scan took %v; expected the rate limit to slow it to ~200ms", elapsed)
+	if elapsed < 250*time.Millisecond {
+		t.Errorf("scan took %v; expected the rate limit to slow it to ~300ms", elapsed)
 	}
 
 	// Unlimited: no waiting at all.
@@ -93,6 +92,28 @@ func TestScan_RateLimitThrottlesAfterBurst(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > 50*time.Millisecond {
 		t.Errorf("unlimited scan took %v", elapsed)
+	}
+}
+
+func TestScan_RateLimitAppliesToEachSegmentsFirstPage(t *testing.T) {
+	// Regression: each segment used to fire its first page without
+	// reserving capacity, so 4 segments could burst 4 full pages (512 RCU)
+	// at once regardless of MaxRCU. Now only the first page, from the full
+	// bucket, goes immediately; the other 3 wait ~100ms each => ~300ms.
+	fake := &fakeDynamo{failOn: -1, pages: 1, rcuPerPage: 128}
+	s := Scanner{Client: fake, Table: "log", Segments: 4, MaxRCU: 1280}
+
+	start := time.Now()
+	entries, err := s.Scan(t.Context(), Filter{}, nil)
+	elapsed := time.Since(start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 4 {
+		t.Fatalf("got %d entries, want 4", len(entries))
+	}
+	if elapsed < 250*time.Millisecond {
+		t.Errorf("4 segments' first pages took %v; expected the shared limit to spread them over ~300ms", elapsed)
 	}
 }
 
