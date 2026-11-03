@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -64,8 +65,10 @@ func initConfig() {
 		viper.SetConfigName("idp-cli")
 	}
 
-	// look for environment variables that match the uppercase of the viper key, prefixed with "IDP_"
+	// look for environment variables that match the uppercase of the viper key, prefixed with "IDP_",
+	// with hyphens as underscores (e.g. tfc-token -> IDP_TFC_TOKEN)
 	viper.SetEnvPrefix("IDP")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
 
 	// If a config file is found, read it in.

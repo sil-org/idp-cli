@@ -15,4 +15,5 @@ Command line options take precedence over environment variables, which take prec
 [spf13/viper](https://github.com/spf13/viper#why-viper)). The config file can be specified as a parameter, like
 `idp --config idp.toml`. If not specified the current directory is searched for a file with the name `idp-cli.toml`.
 The file can be in any of these formats: JSON, TOML, YAML, HCL, envfile. Change the file extension to match the format.
-To set a parameter by environment variable, uppercase the parameter name and prefix with `IDP_`.
+To set a parameter by environment variable, uppercase the parameter name, replace hyphens with underscores, and prefix
+with `IDP_` (e.g. `tfc-token` becomes `IDP_TFC_TOKEN`).
