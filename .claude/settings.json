@@ -1,0 +1,21 @@
+{
+  "sandbox": {
+    "filesystem": {
+      "allowRead": ["."],
+      "denyRead": [
+        "./.env",
+        "./idp-cli.toml",
+        "./idp-cli.json",
+        "./idp-cli.yaml"
+      ]
+    }
+  },
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./idp-cli.toml)",
+      "Read(./idp-cli.json)",
+      "Read(./idp-cli.yaml)"
+    ]
+  }
+}
