@@ -94,7 +94,35 @@ env vars, SSO, ...).`,
 	initTuiCmd(cmd, ff)
 }
 
+// maxScanSegments is DynamoDB's limit on a Scan's TotalSegments.
+const maxScanSegments = 1_000_000
+
+// scanLimits reads and validates the scan tuning parameters. Negative values
+// are rejected rather than treated as "unlimited": they're almost certainly
+// typos, and silently lifting a limit is the dangerous direction to fail in.
+func scanLimits() (loginlog.Scanner, error) {
+	s := loginlog.Scanner{
+		Segments:   viper.GetInt(flags.ScanSegments),
+		MaxRCU:     viper.GetFloat64(flags.MaxRCU),
+		MaxRecords: viper.GetInt(flags.MaxRecords),
+	}
+	switch {
+	case s.Segments < 1 || s.Segments > maxScanSegments:
+		return loginlog.Scanner{}, fmt.Errorf("%s must be between 1 and %d, not %d", flags.ScanSegments, maxScanSegments, s.Segments)
+	case !(s.MaxRCU >= 0): // also rejects NaN
+		return loginlog.Scanner{}, fmt.Errorf("%s must be 0 (unlimited) or more, not %v", flags.MaxRCU, s.MaxRCU)
+	case s.MaxRecords < 0:
+		return loginlog.Scanner{}, fmt.Errorf("%s must be 0 (no limit) or more, not %d", flags.MaxRecords, s.MaxRecords)
+	}
+	return s, nil
+}
+
 func newScanner(ctx context.Context) (loginlog.Scanner, error) {
+	scanner, err := scanLimits()
+	if err != nil {
+		return loginlog.Scanner{}, err
+	}
+
 	table := viper.GetString(flags.LogTable)
 	if table == "" {
 		return loginlog.Scanner{}, fmt.Errorf("parameter %[1]s is not set, use --%[1]s on command line or include in idp-cli.toml file", flags.LogTable)
@@ -109,13 +137,9 @@ func newScanner(ctx context.Context) (loginlog.Scanner, error) {
 		return loginlog.Scanner{}, err
 	}
 
-	return loginlog.Scanner{
-		Client:     client,
-		Table:      table,
-		Segments:   viper.GetInt(flags.ScanSegments),
-		MaxRCU:     viper.GetFloat64(flags.MaxRCU),
-		MaxRecords: viper.GetInt(flags.MaxRecords),
-	}, nil
+	scanner.Client = client
+	scanner.Table = table
+	return scanner, nil
 }
 
 // runScan performs a scan for the non-interactive commands, reporting progress
