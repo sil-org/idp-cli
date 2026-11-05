@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -64,57 +65,62 @@ func (f *fakeDynamo) Scan(ctx context.Context, in *dynamodb.ScanInput, _ ...func
 	return out, nil
 }
 
+// The rate-limit tests run in a synctest bubble, where time is fake: the
+// limiter's waits take no real time, and elapsed time is exact.
+
 func TestScan_RateLimitThrottlesEveryPage(t *testing.T) {
-	// Each page costs a full 128 RCU (the burst size). At 1280 RCU/s the
-	// first page is covered by the initially full bucket and each of the
-	// other 3 waits ~100ms => ~300ms.
-	fake := &fakeDynamo{failOn: -1, pages: 4, rcuPerPage: 128}
-	s := Scanner{Client: fake, Table: "log", Segments: 1, MaxRCU: 1280}
+	synctest.Test(t, func(t *testing.T) {
+		// Each page costs a full 128 RCU (the burst size). At 1280 RCU/s the
+		// first page is covered by the initially full bucket and each of the
+		// other 3 waits 100ms => 300ms.
+		fake := &fakeDynamo{failOn: -1, pages: 4, rcuPerPage: 128}
+		s := Scanner{Client: fake, Table: "log", Segments: 1, MaxRCU: 1280}
 
-	start := time.Now()
-	entries, err := s.Scan(t.Context(), Filter{}, nil)
-	elapsed := time.Since(start)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 4 {
-		t.Fatalf("got %d entries, want 4", len(entries))
-	}
-	if elapsed < 250*time.Millisecond {
-		t.Errorf("scan took %v; expected the rate limit to slow it to ~300ms", elapsed)
-	}
+		start := time.Now()
+		entries, err := s.Scan(t.Context(), Filter{}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(entries) != 4 {
+			t.Fatalf("got %d entries, want 4", len(entries))
+		}
+		if elapsed := time.Since(start); elapsed != 300*time.Millisecond {
+			t.Errorf("scan took %v; want the rate limit to spread it over exactly 300ms", elapsed)
+		}
 
-	// Unlimited: no waiting at all.
-	s.MaxRCU = 0
-	start = time.Now()
-	if _, err := s.Scan(t.Context(), Filter{}, nil); err != nil {
-		t.Fatal(err)
-	}
-	if elapsed := time.Since(start); elapsed > 50*time.Millisecond {
-		t.Errorf("unlimited scan took %v", elapsed)
-	}
+		// Unlimited: no waiting at all.
+		s.MaxRCU = 0
+		start = time.Now()
+		if _, err := s.Scan(t.Context(), Filter{}, nil); err != nil {
+			t.Fatal(err)
+		}
+		if elapsed := time.Since(start); elapsed != 0 {
+			t.Errorf("unlimited scan took %v, want no waiting", elapsed)
+		}
+	})
 }
 
 func TestScan_RateLimitAppliesToEachSegmentsFirstPage(t *testing.T) {
-	// Regression: each segment used to fire its first page without
-	// reserving capacity, so 4 segments could burst 4 full pages (512 RCU)
-	// at once regardless of MaxRCU. Now only the first page, from the full
-	// bucket, goes immediately; the other 3 wait ~100ms each => ~300ms.
-	fake := &fakeDynamo{failOn: -1, pages: 1, rcuPerPage: 128}
-	s := Scanner{Client: fake, Table: "log", Segments: 4, MaxRCU: 1280}
+	synctest.Test(t, func(t *testing.T) {
+		// Regression: each segment used to fire its first page without
+		// reserving capacity, so 4 segments could burst 4 full pages (512 RCU)
+		// at once regardless of MaxRCU. Now only the first page, from the full
+		// bucket, goes immediately; the other 3 wait 100ms each => 300ms.
+		fake := &fakeDynamo{failOn: -1, pages: 1, rcuPerPage: 128}
+		s := Scanner{Client: fake, Table: "log", Segments: 4, MaxRCU: 1280}
 
-	start := time.Now()
-	entries, err := s.Scan(t.Context(), Filter{}, nil)
-	elapsed := time.Since(start)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 4 {
-		t.Fatalf("got %d entries, want 4", len(entries))
-	}
-	if elapsed < 250*time.Millisecond {
-		t.Errorf("4 segments' first pages took %v; expected the shared limit to spread them over ~300ms", elapsed)
-	}
+		start := time.Now()
+		entries, err := s.Scan(t.Context(), Filter{}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(entries) != 4 {
+			t.Fatalf("got %d entries, want 4", len(entries))
+		}
+		if elapsed := time.Since(start); elapsed != 300*time.Millisecond {
+			t.Errorf("4 segments' first pages took %v; want the shared limit to spread them over exactly 300ms", elapsed)
+		}
+	})
 }
 
 func TestScan_CanceledContextStopsScan(t *testing.T) {
