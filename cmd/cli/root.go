@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/sil-org/idp-cli/cmd/cli/flags"
+	"github.com/sil-org/idp-cli/cmd/cli/logins"
 	"github.com/sil-org/idp-cli/cmd/cli/multiregion"
 )
 
@@ -26,7 +27,7 @@ func Execute() {
 		Short: "idp-in-a-box CLI",
 		Long: `idp is a CLI tool for the sil-org/idp-in-a-box system.
 It can be used to check the status of the IdP. It can also be used to establish secondary resources
-in a second AWS region, and to initiate a secondary region failover action.`,
+in a second AWS region, to initiate a secondary region failover action, and to query the login audit log.`,
 	}
 
 	rootCmd.PersistentFlags().StringVar(&configFile, flags.Config, "", "Config file")
@@ -38,6 +39,7 @@ in a second AWS region, and to initiate a secondary region failover action.`,
 
 	SetupVersionCmd(rootCmd)
 	multiregion.SetupMultiregionCmd(rootCmd)
+	logins.SetupLoginsCmd(rootCmd)
 
 	cobra.OnInitialize(initConfig)
 
