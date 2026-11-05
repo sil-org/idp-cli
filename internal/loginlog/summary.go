@@ -105,6 +105,25 @@ func SummarizeSeq(entries iter.Seq[Entry], g GroupBy) []Group {
 	return result
 }
 
+// Top returns the n groups from Summarize with the most logins, or all of
+// them when n <= 0. They stay in Summarize's order, so for ByDay that's the
+// n busiest days listed chronologically; ties go to the more recent day.
+func Top(groups []Group, g GroupBy, n int) []Group {
+	if n <= 0 || len(groups) <= n {
+		return groups
+	}
+	if g != ByDay {
+		return groups[:n] // already sorted by login count
+	}
+	busiest := slices.Clone(groups)
+	slices.SortFunc(busiest, func(a, b Group) int {
+		return cmp.Or(cmp.Compare(b.Logins, a.Logins), cmp.Compare(b.Key, a.Key))
+	})
+	busiest = busiest[:n]
+	slices.SortFunc(busiest, func(a, b Group) int { return cmp.Compare(a.Key, b.Key) })
+	return busiest
+}
+
 // Totals summarizes a whole result set.
 type Totals struct {
 	Logins int    `json:"logins"`

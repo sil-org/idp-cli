@@ -84,3 +84,44 @@ func TestParseGroupBy(t *testing.T) {
 		t.Errorf("expected error for unknown grouping")
 	}
 }
+
+func TestTop_KeepsTheLargestGroups(t *testing.T) {
+	groups := Summarize(sample, BySP)
+	got := Top(groups, BySP, 1)
+	if len(got) != 1 || got[0].Key != "sp-a" {
+		t.Errorf("Top 1 by SP = %+v, want just sp-a", got)
+	}
+	if got := Top(groups, BySP, 0); len(got) != len(groups) {
+		t.Errorf("Top 0 should keep all %d groups, got %d", len(groups), len(got))
+	}
+}
+
+func TestTop_ByDayPicksBusiestDaysInDateOrder(t *testing.T) {
+	day := func(d string, n int) []Entry {
+		entries := make([]Entry, n)
+		for i := range entries {
+			entries[i] = Entry{ID: d + string(rune('a'+i)), Time: d + " 09:00:00"}
+		}
+		return entries
+	}
+	var entries []Entry
+	for _, d := range []struct {
+		date   string
+		logins int
+	}{
+		{"2026-10-01", 1}, {"2026-10-02", 5}, {"2026-10-03", 2}, {"2026-10-04", 4}, {"2026-10-05", 2},
+	} {
+		entries = append(entries, day(d.date, d.logins)...)
+	}
+
+	got := Top(Summarize(entries, ByDay), ByDay, 3)
+	keys := make([]string, len(got))
+	for i, g := range got {
+		keys[i] = g.Key
+	}
+	// The 3 busiest are 10-02 (5), 10-04 (4), and a tie at 2 that goes to the
+	// more recent 10-05 -- listed by date, not by count.
+	if want := []string{"2026-10-02", "2026-10-04", "2026-10-05"}; !slices.Equal(keys, want) {
+		t.Errorf("keys = %v, want %v", keys, want)
+	}
+}

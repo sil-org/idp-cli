@@ -33,6 +33,9 @@ func initSummaryCmd(parent *cobra.Command, ff *filterFlags) {
 			if err != nil {
 				return err
 			}
+			if top < 0 {
+				return fmt.Errorf("--top must be 0 (all) or more, not %d", top)
+			}
 			cmd.SilenceUsage = true
 
 			entries, err := runScan(ff)
@@ -43,8 +46,12 @@ func initSummaryCmd(parent *cobra.Command, ff *filterFlags) {
 			groups := loginlog.Summarize(entries, by)
 			totalGroups := len(groups)
 			if top > 0 && totalGroups > top {
-				defer fmt.Fprintf(os.Stderr, "Showing top %d of %d groups (use --top 0 for all)\n", top, totalGroups)
-				groups = groups[:top]
+				if by == loginlog.ByDay {
+					defer fmt.Fprintf(os.Stderr, "Showing the %d busiest of %d days, in date order (use --top 0 for all)\n", top, totalGroups)
+				} else {
+					defer fmt.Fprintf(os.Stderr, "Showing top %d of %d groups (use --top 0 for all)\n", top, totalGroups)
+				}
+				groups = loginlog.Top(groups, by, top)
 			}
 			return writeGroups(os.Stdout, f, by, groups, totalGroups, loginlog.Total(entries))
 		},
@@ -52,6 +59,6 @@ func initSummaryCmd(parent *cobra.Command, ff *filterFlags) {
 	parent.AddCommand(cmd)
 
 	cmd.Flags().StringVarP(&byArg, "by", "b", string(loginlog.BySP), "group by: sp, hub, idp, day, or user")
-	cmd.Flags().IntVar(&top, "top", 0, "show only the N largest groups (0 = all)")
+	cmd.Flags().IntVar(&top, "top", 0, "show only the N groups with the most logins; with --by day, the N busiest days in date order (0 = all)")
 	cmd.Flags().StringVarP(&formatArg, "format", "o", string(formatTable), "output format: table, csv, or json")
 }
