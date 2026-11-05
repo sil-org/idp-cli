@@ -154,7 +154,7 @@ func newTuiModel(scanner loginlog.Scanner, ff *filterFlags) tuiModel {
 	initial := [fieldCount]string{ff.since, ff.until, ff.idpEntity, ff.sp, ff.hub, ff.user}
 	placeholders := [fieldCount]string{
 		"e.g. 24h, 7d, 2026-10-01 (UTC)",
-		"blank = now; a bare date includes the whole day",
+		"blank = now; a date, or a time without seconds, includes that whole day or minute",
 		"exact IdP entity ID",
 		"exact SP entity ID",
 		`exact Hub entity ID, or "direct"`,

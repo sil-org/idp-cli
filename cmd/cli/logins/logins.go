@@ -33,7 +33,7 @@ type filterFlags struct {
 func (ff *filterFlags) register(cmd *cobra.Command) {
 	pf := cmd.PersistentFlags()
 	pf.StringVar(&ff.since, "since", "", `only logins at/after this time: 24h, 7d, 2w, 2026-10-01, "2026-10-01 13:45" (UTC)`)
-	pf.StringVar(&ff.until, "until", "", "only logins at/before this time (same forms as --since; a bare date includes that whole day)")
+	pf.StringVar(&ff.until, "until", "", "only logins at/before this time (same forms as --since; a date or a time without seconds includes that whole day or minute)")
 	pf.StringVar(&ff.idpEntity, "idp-entity", "", "only logins at this IdP entity ID")
 	pf.StringVar(&ff.sp, "sp", "", "only logins to this SP entity ID")
 	pf.StringVar(&ff.hub, "hub", "", `only logins via this Hub entity ID, or "direct" for logins with no Hub`)

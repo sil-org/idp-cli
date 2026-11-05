@@ -138,10 +138,14 @@ func (f Filter) expression() (expr string, names map[string]string, values map[s
 // Accepted forms (all absolute forms are UTC, matching the stored Time):
 //
 //	30m, 24h, 7d, 2w   -- that long before now
-//	2026-10-01         -- a date; start of day, or end of day when endOfDay is set
+//	2026-10-01         -- a date
 //	2026-10-01 13:45   -- date and time (seconds optional)
 //	2026-10-01T13:45:00Z -- RFC 3339
-func ParseTimeArg(s string, now time.Time, endOfDay bool) (time.Time, error) {
+//
+// When inclusiveEnd is set (for --until), a value without seconds is rounded
+// up to the last second of the day or minute it names, so that whole day or
+// minute is included.
+func ParseTimeArg(s string, now time.Time, inclusiveEnd bool) (time.Time, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return time.Time{}, nil
@@ -151,15 +155,21 @@ func ParseTimeArg(s string, now time.Time, endOfDay bool) (time.Time, error) {
 		return now.Add(-d), nil
 	}
 
-	if t, err := time.Parse(time.DateOnly, s); err == nil {
-		if endOfDay {
-			return t.Add(24*time.Hour - time.Second), nil
-		}
-		return t, nil
+	layouts := []struct {
+		layout string
+		unit   time.Duration // the precision of the layout, for inclusiveEnd
+	}{
+		{time.DateOnly, 24 * time.Hour},
+		{time.DateTime, time.Second},
+		{"2006-01-02 15:04", time.Minute},
+		{time.RFC3339, time.Second},
+		{"2006-01-02T15:04", time.Minute},
 	}
-
-	for _, layout := range []string{time.DateTime, "2006-01-02 15:04", time.RFC3339, "2006-01-02T15:04"} {
-		if t, err := time.Parse(layout, s); err == nil {
+	for _, l := range layouts {
+		if t, err := time.Parse(l.layout, s); err == nil {
+			if inclusiveEnd {
+				t = t.Add(l.unit - time.Second)
+			}
 			return t.UTC(), nil
 		}
 	}

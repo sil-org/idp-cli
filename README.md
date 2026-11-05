@@ -49,7 +49,7 @@ needs a rescan, and the filter form says which will happen before you press Ente
 | Flag           | Meaning                                                                                     |
 |----------------|---------------------------------------------------------------------------------------------|
 | `--since`      | at/after: `24h`, `7d`, `2w`, `2026-10-01`, `"2026-10-01 13:45"`, or RFC 3339                |
-| `--until`      | at/before, same forms; a bare date includes that whole day                                  |
+| `--until`      | at/before, same forms; a date or a time without seconds includes that whole day or minute   |
 | `--sp`         | exact SP entity ID                                                                          |
 | `--hub`        | exact Hub entity ID, or `direct` for logins that didn't come through a Hub                  |
 | `--idp-entity` | exact IdP entity ID                                                                         |

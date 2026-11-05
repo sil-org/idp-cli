@@ -11,9 +11,9 @@ func TestParseTimeArg(t *testing.T) {
 	now := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		in       string
-		endOfDay bool
-		want     time.Time
+		in           string
+		inclusiveEnd bool
+		want         time.Time
 	}{
 		{"", false, time.Time{}},
 		{"24h", false, now.Add(-24 * time.Hour)},
@@ -25,15 +25,22 @@ func TestParseTimeArg(t *testing.T) {
 		{"2026-10-01 13:45", false, time.Date(2026, 10, 1, 13, 45, 0, 0, time.UTC)},
 		{"2026-10-01 13:45:30", false, time.Date(2026, 10, 1, 13, 45, 30, 0, time.UTC)},
 		{"2026-10-01T13:45:00-05:00", false, time.Date(2026, 10, 1, 18, 45, 0, 0, time.UTC)},
+		{"2026-10-01T13:45", false, time.Date(2026, 10, 1, 13, 45, 0, 0, time.UTC)},
+		// --until includes the whole minute it names, but is exact to the second.
+		{"2026-10-01 13:45", true, time.Date(2026, 10, 1, 13, 45, 59, 0, time.UTC)},
+		{"2026-10-01T13:45", true, time.Date(2026, 10, 1, 13, 45, 59, 0, time.UTC)},
+		{"2026-10-01 13:45:30", true, time.Date(2026, 10, 1, 13, 45, 30, 0, time.UTC)},
+		{"2026-10-01T13:45:00-05:00", true, time.Date(2026, 10, 1, 18, 45, 0, 0, time.UTC)},
+		{"24h", true, now.Add(-24 * time.Hour)},
 	}
 	for _, tt := range tests {
-		got, err := ParseTimeArg(tt.in, now, tt.endOfDay)
+		got, err := ParseTimeArg(tt.in, now, tt.inclusiveEnd)
 		if err != nil {
 			t.Errorf("ParseTimeArg(%q): unexpected error %v", tt.in, err)
 			continue
 		}
 		if !got.Equal(tt.want) {
-			t.Errorf("ParseTimeArg(%q, endOfDay=%v) = %v, want %v", tt.in, tt.endOfDay, got, tt.want)
+			t.Errorf("ParseTimeArg(%q, inclusiveEnd=%v) = %v, want %v", tt.in, tt.inclusiveEnd, got, tt.want)
 		}
 	}
 
