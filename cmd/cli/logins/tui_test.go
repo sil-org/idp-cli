@@ -1,6 +1,8 @@
 package logins
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -34,7 +36,8 @@ func loadedModel(t *testing.T) tuiModel {
 	if m.screen != screenScanning {
 		t.Fatalf("first submit should scan, got screen %v", m.screen)
 	}
-	m = update(t, m, scanDoneMsg{scope: m.pending.TimeRange(), entries: entries})
+	m.scanProgress.Scanned.Store(40)
+	m = update(t, m, scanDoneMsg{scope: m.pending.TimeRange(), entries: entries, elapsed: time.Second})
 	if m.screen != screenResults || len(m.view) != 4 {
 		t.Fatalf("after scan: screen %v, %d in view; want results with 4", m.screen, len(m.view))
 	}
@@ -180,5 +183,43 @@ func TestTui_LoginsTabCapsRowsButCountsEverything(t *testing.T) {
 	m = update(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")})
 	if len(m.rowsG) != 1 || m.rowsG[0].Logins != n {
 		t.Errorf("By SP = %+v; want one group with all %d logins", m.rowsG, n)
+	}
+}
+
+func TestTui_FailedRescanKeepsPreviousStats(t *testing.T) {
+	for name, err := range map[string]error{
+		"canceled": context.Canceled,
+		"failed":   errors.New("boom"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := loadedModel(t)
+			loadedProgress, loadedElapsed := m.progress, m.elapsed
+
+			m = submit(t, m, map[int]string{fieldSince: "30d"})
+			m.scanProgress.Scanned.Store(999) // the aborted scan got partway
+			m = update(t, m, scanDoneMsg{scope: m.pending.TimeRange(), err: err, elapsed: time.Minute})
+
+			if m.progress != loadedProgress || m.elapsed != loadedElapsed {
+				t.Errorf("a %s rescan replaced the loaded results' stats", name)
+			}
+			if got := m.progress.Scanned.Load(); got != 40 {
+				t.Errorf("Scanned = %d, want the loaded scan's 40", got)
+			}
+		})
+	}
+}
+
+func TestTui_TooManyRecordsExplainsTimeRangeScan(t *testing.T) {
+	m := loadedModel(t)
+	m = submit(t, m, map[int]string{fieldSince: "90d", fieldUser: "100"})
+	m = update(t, m, scanDoneMsg{err: &loginlog.TooManyRecordsError{Limit: 1_000_000}})
+
+	if m.screen != screenForm {
+		t.Fatalf("screen = %v, want the form", m.screen)
+	}
+	for _, want := range []string{"more than 1000000 logins match", "Since/Until", "logins list"} {
+		if !strings.Contains(m.formErr, want) {
+			t.Errorf("formErr %q doesn't mention %q", m.formErr, want)
+		}
 	}
 }

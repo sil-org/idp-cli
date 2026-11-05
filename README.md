@@ -45,7 +45,9 @@ contains user identifiers.
 The TUI scans only by time range (`--since`/`--until`) and applies the other filters in memory, so changing the SP,
 Hub, IdP, or user filter (or narrowing the time range) is instant. Only widening the time range beyond what's loaded
 needs a rescan, and the filter form says which will happen before you press Enter. The Logins tab shows the newest
-10,000 matching logins; counts and summary tabs always cover all of them.
+10,000 matching logins; counts and summary tabs always cover all of them. Because it loads every
+login in the time range, a wide range can hit `--max-records` in the TUI even when `list` or `summary` with the same
+filters wouldn't.
 
 ### Filters
 

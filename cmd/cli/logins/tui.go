@@ -123,18 +123,19 @@ type tuiModel struct {
 	formErr string
 
 	// scanning
-	spinner  spinner.Model
-	progress *loginlog.Progress
-	cancel   context.CancelFunc
-	started  time.Time
+	spinner      spinner.Model
+	scanProgress *loginlog.Progress // the running scan's; becomes progress if it succeeds
+	cancel       context.CancelFunc
+	started      time.Time
 
 	// results
-	loaded   loginlog.Filter  // time range the loaded entries were scanned with
-	pending  loginlog.Filter  // filter to activate when the running scan finishes
-	filter   loginlog.Filter  // active filter, applied in memory to entries
-	entries  []loginlog.Entry // everything the scan returned, newest first
-	view     []int32          // indices into entries, narrowed by filter and drills (cached)
-	totals   loginlog.Totals  // totals for view (cached)
+	loaded   loginlog.Filter    // time range the loaded entries were scanned with
+	pending  loginlog.Filter    // filter to activate when the running scan finishes
+	filter   loginlog.Filter    // active filter, applied in memory to entries
+	entries  []loginlog.Entry   // everything the scan returned, newest first
+	view     []int32            // indices into entries, narrowed by filter and drills (cached)
+	totals   loginlog.Totals    // totals for view (cached)
+	progress *loginlog.Progress // stats of the scan that loaded entries
 	elapsed  time.Duration
 	tab      int
 	drills   []drill
@@ -344,12 +345,14 @@ func (m tuiModel) startScan(filter loginlog.Filter) (tea.Model, tea.Cmd) {
 	m.pending = filter
 	scope := filter.TimeRange()
 	m.screen = screenScanning
-	m.progress = &loginlog.Progress{}
+	// The loaded results, and the stats describing them, stay untouched
+	// until this scan succeeds; a canceled or failed one leaves them be.
+	m.scanProgress = &loginlog.Progress{}
 	m.started = time.Now()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
-	scanner, progress, started := m.scanner, m.progress, m.started
+	scanner, progress, started := m.scanner, m.scanProgress, m.started
 
 	scan := func() tea.Msg {
 		entries, err := scanner.Scan(ctx, scope, progress)
@@ -378,11 +381,7 @@ func (m tuiModel) updateScanning(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cancel()
 		m.cancel = nil
 		if msg.err != nil {
-			if errors.Is(msg.err, context.Canceled) {
-				m.formErr = "Scan canceled."
-			} else {
-				m.formErr = "Scan failed: " + msg.err.Error()
-			}
+			m.formErr = scanErrorMessage(msg.err)
 			m.screen = screenForm
 			cmd := m.inputs[m.focused].Focus()
 			return m, cmd
@@ -390,6 +389,7 @@ func (m tuiModel) updateScanning(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		loginlog.SortNewestFirst(msg.entries)
 		m.entries = msg.entries
+		m.progress = m.scanProgress
 		m.loaded = msg.scope
 		m.filter = m.pending
 		m.elapsed = msg.elapsed
@@ -400,6 +400,21 @@ func (m tuiModel) updateScanning(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.table.GotoTop()
 	}
 	return m, nil
+}
+
+// scanErrorMessage explains why a scan ended without results.
+func scanErrorMessage(err error) string {
+	if errors.Is(err, context.Canceled) {
+		return "Scan canceled."
+	}
+	if _, ok := errors.AsType[*loginlog.TooManyRecordsError](err); ok {
+		// Unlike list and summary, the TUI loads every login in the time
+		// range and filters afterwards, so it can hit the limit where they
+		// wouldn't with the same filters.
+		return "Scan stopped: " + err.Error() + ". The TUI loads every login in the Since/Until range " +
+			"before applying the other filters; to filter while scanning, use idp-cli logins list or summary."
+	}
+	return "Scan failed: " + err.Error()
 }
 
 func (m tuiModel) updateResults(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -689,7 +704,11 @@ func (m tuiModel) viewForm() string {
 		b.WriteString(label.Render(fieldLabels[i]) + "  " + m.inputs[i].View() + "\n")
 	}
 	if m.formErr != "" {
-		b.WriteString("\n" + errStyle.Render(m.formErr) + "\n")
+		errLine := errStyle
+		if m.width > 0 {
+			errLine = errLine.Width(m.width) // wrap long errors at word boundaries
+		}
+		b.WriteString("\n" + errLine.Render(m.formErr) + "\n")
 	}
 	limit := "unlimited"
 	if m.scanner.MaxRCU > 0 {
@@ -728,7 +747,7 @@ func (m tuiModel) viewScanning() string {
 	return fmt.Sprintf("%s Scanning…  %s\n\n%s\n\n%s",
 		m.spinner.View(),
 		mutedStyle.Render(elapsed.String()),
-		progressLine(m.progress),
+		progressLine(m.scanProgress),
 		mutedStyle.Render("esc cancel · ctrl+c quit"),
 	)
 }
