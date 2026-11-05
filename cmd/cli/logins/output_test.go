@@ -58,3 +58,24 @@ func TestWriteGroups_TableFooterCountsAllGroups(t *testing.T) {
 		t.Errorf("footer should count all groups, not just the shown ones:\n%s", b.String())
 	}
 }
+
+func TestEffectiveLimit(t *testing.T) {
+	tests := []struct {
+		f        format
+		limit    int
+		limitSet bool
+		want     int
+	}{
+		{formatTable, 0, false, defaultTableLimit},
+		{formatCSV, 0, false, 0}, // a redirected export gets every match by default
+		{formatJSON, 0, false, 0},
+		{formatTable, 0, true, 0}, // an explicit --limit always wins
+		{formatTable, 10, true, 10},
+		{formatCSV, 10, true, 10},
+	}
+	for _, tt := range tests {
+		if got := effectiveLimit(tt.f, tt.limit, tt.limitSet); got != tt.want {
+			t.Errorf("effectiveLimit(%s, %d, set=%v) = %d, want %d", tt.f, tt.limit, tt.limitSet, got, tt.want)
+		}
+	}
+}

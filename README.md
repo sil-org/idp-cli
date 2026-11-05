@@ -30,6 +30,9 @@ idp-cli logins summary [filters] [--by sp|hub|idp|day|user] [--top N] [--format 
 idp-cli logins tui     [filters]
 ```
 
+`list` shows the newest 50 logins as a table, but every matching login as CSV or JSON, since those are usually
+written to a file; `--limit` overrides either.
+
 `tui` opens an interactive browser: switch between the raw logins and summaries by SP, Hub, IdP, day, and user; press
 Enter on a summary row to drill into it (Backspace drills back out), `/` to search the visible rows, Enter on a login
 for its full record, `e` to export the current tab to CSV, `f` to edit the filters, and `r` to rescan.
@@ -63,7 +66,7 @@ All times are UTC, matching what is stored.
 idp-cli logins summary --since 30d --by hub
 idp-cli logins summary --since 2026-10-01 --until 2026-10-31 --by day
 idp-cli logins summary --since 7d --by user --top 20
-idp-cli logins list --user 10001 --since 90d --limit 0 --format csv > user-10001.csv
+idp-cli logins list --user 10001 --since 90d --format csv > user-10001.csv
 idp-cli logins tui --since 7d
 idp-cli logins summary --profile idp-audit --region us-east-1 --since 7d --by sp
 ```
