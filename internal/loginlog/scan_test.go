@@ -236,3 +236,19 @@ func TestScan_MaxRecordsNotExceeded(t *testing.T) {
 		t.Errorf("got %d entries, want 6", len(entries))
 	}
 }
+
+func TestScan_MaxRecordsIgnoresReusedProgress(t *testing.T) {
+	// The limit counts this scan's matches, not whatever a reused Progress
+	// already holds from an earlier scan.
+	fake := &fakeDynamo{failOn: -1, pages: 2}
+	s := Scanner{Client: fake, Table: "log", Segments: 3, MaxRecords: 6} // exactly 6 matches
+	progress := &Progress{}
+	progress.Matched.Store(100)
+
+	if _, err := s.Scan(t.Context(), Filter{}, progress); err != nil {
+		t.Fatalf("a reused Progress should not count toward MaxRecords: %v", err)
+	}
+	if got := progress.Matched.Load(); got != 106 {
+		t.Errorf("Matched = %d, want 106 (it keeps accumulating)", got)
+	}
+}

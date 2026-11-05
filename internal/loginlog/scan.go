@@ -55,6 +55,8 @@ func (e *TooManyRecordsError) Error() string {
 }
 
 // Progress is updated live during a scan and is safe to read concurrently.
+// It only reports on a scan; the scan's own limits don't depend on it, so a
+// Progress reused across scans just keeps accumulating.
 type Progress struct {
 	Scanned  atomic.Int64 // items read
 	Matched  atomic.Int64 // items that passed the filter
@@ -91,10 +93,11 @@ func (s Scanner) Scan(ctx context.Context, f Filter, progress *Progress) ([]Entr
 		mu      sync.Mutex
 		entries []Entry
 		wg      sync.WaitGroup
+		matched atomic.Int64 // this scan's matches, for MaxRecords
 	)
 	for segment := range segments {
 		wg.Go(func() {
-			found, err := s.scanSegment(ctx, f, int32(segment), int32(segments), limiter, progress)
+			found, err := s.scanSegment(ctx, f, int32(segment), int32(segments), limiter, &matched, progress)
 			if _, ok := errors.AsType[*TooManyRecordsError](err); ok {
 				cancel(err) // a whole-scan limit; which segment hit it is irrelevant
 				return
@@ -121,6 +124,7 @@ func (s Scanner) scanSegment(
 	f Filter,
 	segment, totalSegments int32,
 	limiter *rate.Limiter,
+	matched *atomic.Int64,
 	progress *Progress,
 ) ([]Entry, error) {
 	expr, names, values := f.expression()
@@ -163,8 +167,8 @@ func (s Scanner) scanSegment(
 		entries = append(entries, pageEntries...)
 
 		progress.Scanned.Add(int64(page.ScannedCount))
-		matched := progress.Matched.Add(int64(page.Count))
-		if s.MaxRecords > 0 && matched > int64(s.MaxRecords) {
+		progress.Matched.Add(int64(page.Count))
+		if total := matched.Add(int64(page.Count)); s.MaxRecords > 0 && total > int64(s.MaxRecords) {
 			return nil, &TooManyRecordsError{Limit: s.MaxRecords}
 		}
 
